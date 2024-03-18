@@ -6,6 +6,7 @@
 
 //Numero de trens 
 #define NUM_TRENS 5
+#define INTERFACE 1 //Caso seja 0 a inteface se torna linhas de comando normais
 
 // Struct - Especifiações de cada trem
 typedef struct {
@@ -14,6 +15,9 @@ typedef struct {
     int destino;
     int prioridade;
 } Trem;
+
+//Criando 5 variaveis do tipo trem e inicializando tudo com 0
+Trem info_trens[NUM_TRENS] = {0};
 
 //
 int posicao_a[NUM_TRENS],posicao_b[NUM_TRENS];
@@ -67,6 +71,64 @@ const char *prioridade_para_string(int prioridade){
 }
 
 
+void imprimir_interface(int atual, int origem, int saida, int prio) {
+
+    system("clear");
+    printf(" _______________________________\n");
+    printf("|----------- ORIGEM ------------|\n|\tA1\t\tB1\t|\n");
+    
+    for(int i=NUM_TRENS-1; i>=0; i--){
+
+        if(posicao_a[i]==0){
+            printf("|\t----\t\t");
+        }
+        else
+        {
+            printf("|\t%d:%s\t\t", posicao_a[i], prioridade_para_string(info_trens[posicao_a[i]-1].prioridade));
+        }
+        
+        if(posicao_b[i]==0){
+            printf("----\t|\n");
+        }
+        else
+        {
+            printf("%d:%s\t|\n", posicao_b[i], prioridade_para_string(info_trens[posicao_b[i]-1].prioridade));
+        }
+    }
+    if(origem>=0){
+        //printf("\n");
+        printf(" _______________________________\n");
+        printf( "|---------- CRUZAMENTO ---------|\n"
+                "|\t\t%d:%s\t\t\n"
+                "|_______________________________|\n", atual, prioridade_para_string(prio));
+    }
+
+    if(origem==-1){
+        printf(" _______________________________\n");
+        printf("|---------- CRUZAMENTO ---------|\n"
+               "|\t\t----\t\t\n"
+               "|_______________________________|\n");
+    }
+
+    printf(" _______________________________\n");
+    printf("|----------- DESTINO -----------|\n|\tA2\t\tB2\t|\n");
+    if (saida==2)
+    {
+        printf("|\t%d:%s\t\t----\t|\n", atual, prioridade_para_string(prio) );
+    }
+    if (saida==3)
+    {
+        printf("|\t----\t\t%d:%s\t|\n", atual, prioridade_para_string(prio));
+    }
+
+    if (saida==0)
+    {
+        printf("|\t----\t\t----\t|\n");
+    }
+    printf("|_______________________________|\n");
+}
+
+
 //Função para especificações aleatórias dos trens
 void *trem(void *arg){
     Trem *in_trem = (Trem *)arg; 
@@ -79,13 +141,15 @@ void *trem(void *arg){
         in_trem->prioridade = rand() % 3;  
 
         //**********Mostrando informações do trem gerado***
-        printf("Trem %d Origem: %s Destino: %s Prioridade %s se aproximando do cruzamento\n",
-                in_trem->id,
-                direcao_para_string(in_trem->origem),
-                direcao_para_string(in_trem->destino),
-                prioridade_para_string(in_trem->prioridade));
+        if(INTERFACE==0){
+            printf("Trem %d Origem: %s Destino: %s Prioridade %s se aproximando do cruzamento\n",
+                    in_trem->id,
+                    direcao_para_string(in_trem->origem),
+                    direcao_para_string(in_trem->destino),
+                    prioridade_para_string(in_trem->prioridade));
 
-        printf("Trem %d aguardando \n",in_trem->id);
+            printf("Trem %d aguardando \n",in_trem->id);
+        }
 
         //Definir a posição do trem no seu trilho de origem
         sem_wait(&posicao);
@@ -96,13 +160,7 @@ void *trem(void *arg){
             posicao_b[i_B] = in_trem->id;
             i_B++;
         }
-        printf("A: %d %d %d %d %d \n",
-        posicao_a[0],posicao_a[1],posicao_a[2],posicao_a[3],posicao_a[4]);
-        printf("B: %d %d %d %d %d \n",
-        posicao_b[0],posicao_b[1],posicao_b[2],posicao_b[3],posicao_b[4]);
         sem_post(&posicao);      
-        
-        
         
         //Esperar chegar a vez na fila do trilho (Espera bloqueada)
 
@@ -117,21 +175,27 @@ void *trem(void *arg){
         sem_wait(&cruzamento);
         if (in_trem->prioridade == 1){
             sem_post(&cruzamento);
-            usleep(500);
+            usleep(10000);
             sem_wait(&cruzamento);
         }else if(in_trem->prioridade == 2){
             sem_post(&cruzamento);
-            usleep(1000);
+            usleep(30000);
             sem_wait(&cruzamento);
         }
         //Acesso solicitado
             
         //Passagem do trem pelo cruzamento
-        printf("Trem %d passando pelo cruzamento \n",in_trem->id);
-        sleep(1);
-        printf("Trem %d passou pelo cruzamento \n",in_trem->id);
+        if(INTERFACE==0){
+            printf("Trem %d passando pelo cruzamento \n",in_trem->id);
+            sleep(1);
+            printf("Trem %d passou pelo cruzamento \n",in_trem->id);
+        }
+        if(INTERFACE==1){
+            imprimir_interface(in_trem->id,-1, 0, in_trem->prioridade);
+            sleep(1);
+        }
 
-        sem_post(&cruzamento);
+        //sem_post(&cruzamento);
 
         //Atualizando a lista de posições apos o trem passar
         //Aqui a condição do mutex vai ser liberada e atendida
@@ -153,6 +217,15 @@ void *trem(void *arg){
             pthread_cond_broadcast(&cond);
         }
         pthread_mutex_unlock(&mutex);
+
+        if(INTERFACE==1){
+            imprimir_interface(in_trem->id,in_trem->origem, 0, in_trem->prioridade);
+            sleep(1);
+            imprimir_interface(in_trem->id, -1 , in_trem->destino, in_trem->prioridade);
+            sleep(1);
+        }
+
+        sem_post(&cruzamento);
         sem_post(&posicao); 
 
         //Espera para gerar outro trem
@@ -162,7 +235,7 @@ void *trem(void *arg){
 
 int main(){
 
-    //
+    //Inicializando mutex
     pthread_mutex_init(&mutex, NULL);
 
     //Inicializando semáforos
@@ -171,7 +244,6 @@ int main(){
 
     //Criação dos trens aleatórios / threads
     pthread_t trens[NUM_TRENS];
-    Trem info_trens[NUM_TRENS] = {0};
 
     srand(time(NULL));
 

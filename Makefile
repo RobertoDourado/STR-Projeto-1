@@ -2,10 +2,10 @@ CC=gcc
 
 CFLAGS=-pthread
 
-all: Teste1
+all: STR-1
 
-Teste1: Teste1.c
+STR-1: STR-1.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	rm -f Teste1
+	rm -f STR-1
